@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Squares</title>
+    <title>Sand</title>
     <meta charset="UTF-8" />
   </head>
 
@@ -33,18 +33,6 @@
       };
 
       window.addEventListener("resize", resize);
-
-	
-	// debugging stuff
-	const print = console.log.bind(console)
-	Reflect.defineProperty(Object.prototype, "d", {
-		get() {
-			const value = this.valueOf()
-			print(value)
-			return value
-		},
-		set() {throw new Error("no")}
-	})
 	
 	const SPACE_SIZE = 30
 	
@@ -117,10 +105,6 @@
 				const dropperScore2 = Math.sin(ticker)
 				const dropperOffset2 = Math.floor((GRID_WIDTH/4 * dropperScore2) + GRID_WIDTH/2)
 				setSpace(dropperOffset2, 0, ELEMENT_SAND)
-				
-				/*const dropperScore2 = Math.sin(ticker) * -1
-				const dropperOffset2 = (GRID_WIDTH/3 * dropperScore2) + GRID_WIDTH/2
-				setSpace(dropperOffset2, 0, ELEMENT_SAND)*/
 				
 				//context.clearRect(0, 0, canvas.width, canvas.height)
 				let sands = 0
