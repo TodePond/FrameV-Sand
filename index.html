@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Squares</title>
+    <meta charset="UTF-8" />
+  </head>
+
+  <body>
+    <div id="app"></div>
+
+    <script>
+      const pipe = (...fns) => x => fns.reduce((acc, fn) => fn(acc), x);
+
+      const radians = degrees => degrees * (Math.PI / 180);
+
+      let raf;
+      const app = document.getElementById("app");
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      canvas.style.position = "fixed";
+      canvas.style.top = 0;
+      canvas.style.left = 0;
+
+      app.appendChild(canvas);
+
+      const resize = () => {
+        canvas.width = window.innerWidth; // * window.devicePixelRatio
+        canvas.height = window.innerHeight; // * window.devicePixelRatio
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
+		setupSpaces()
+      };
+
+      window.addEventListener("resize", resize);
+
+	
+	// debugging stuff
+	const print = console.log.bind(console)
+	Reflect.defineProperty(Object.prototype, "d", {
+		get() {
+			const value = this.valueOf()
+			print(value)
+			return value
+		},
+		set() {throw new Error("no")}
+	})
+	
+	const SPACE_SIZE = 30
+	
+	let GRID_WIDTH = undefined
+	let GRID_HEIGHT = undefined
+	let spaces = undefined
+	const HEIGHT_PADDING = 15
+	
+	const setupSpaces = () => {
+		GRID_WIDTH = Math.ceil(window.innerWidth / SPACE_SIZE)
+		GRID_HEIGHT = Math.ceil(window.innerHeight / SPACE_SIZE) + HEIGHT_PADDING
+		spaces = new Uint8Array(GRID_WIDTH * GRID_HEIGHT)
+	}
+	
+	setupSpaces()
+    resize();
+	
+	const ELEMENT_EMPTY = 0
+	const ELEMENT_SAND = 1
+	
+	const getSpaceId = (x, y) => {
+		if (x < 0 || x >= GRID_WIDTH) return -1
+		if (y < 0 || y >= GRID_HEIGHT) return -1
+		return x + y*GRID_WIDTH
+	}
+	const getSpacePosition = (id) => {
+		const x = id % GRID_WIDTH
+		const y = (id - x) / GRID_WIDTH
+		return [x, y]
+	}
+	
+	const getSpace = (x, y) => spaces[getSpaceId(x, y)]
+	const setSpace = (x, y, element) => {
+		const id = getSpaceId(Math.floor(x), Math.floor(y))
+		spaces[id] = element
+	}
+	
+	let flipped = false
+	const flipperoni = () => {
+		for (let i = 0; i < spaces.length; i++) {
+			spaces[i] = ELEMENT_EMPTY
+		}
+		flipped = !flipped
+	}
+	
+	const drawSquare = (context, x, y) => {
+		const red = (255 * x/GRID_WIDTH)
+		const c = 255 - (255 * (y - HEIGHT_PADDING)/(GRID_HEIGHT - HEIGHT_PADDING))
+		context.fillStyle = `rgb(${red}, 0, ${c})`
+		context.fillRect(x * SPACE_SIZE, (y - HEIGHT_PADDING) * SPACE_SIZE, SPACE_SIZE, SPACE_SIZE)
+	}
+	
+	const drawAntiSquare = (context, x, y) => {
+		const red = (255 * x/GRID_WIDTH)
+		const c = (255 * (y - HEIGHT_PADDING)/(GRID_HEIGHT - HEIGHT_PADDING))
+		context.fillStyle = `rgb(${c}, 0, ${red})`
+		context.fillRect(x * SPACE_SIZE, (y - HEIGHT_PADDING) * SPACE_SIZE, SPACE_SIZE, SPACE_SIZE)
+	}
+	
+	const Modules = {
+		sand: {
+			meta: {name: "Sand"},
+			draw({canvas, context, delta}) {
+			
+				const ticker = delta
+				const dropperScore = Math.sin(ticker)
+				const dropperOffset = Math.floor((GRID_WIDTH/2 * dropperScore) + GRID_WIDTH/2)
+				setSpace(dropperOffset, 0, ELEMENT_SAND)
+				
+				const dropperScore2 = Math.sin(ticker)
+				const dropperOffset2 = Math.floor((GRID_WIDTH/4 * dropperScore2) + GRID_WIDTH/2)
+				setSpace(dropperOffset2, 0, ELEMENT_SAND)
+				
+				/*const dropperScore2 = Math.sin(ticker) * -1
+				const dropperOffset2 = (GRID_WIDTH/3 * dropperScore2) + GRID_WIDTH/2
+				setSpace(dropperOffset2, 0, ELEMENT_SAND)*/
+				
+				//context.clearRect(0, 0, canvas.width, canvas.height)
+				let sands = 0
+				for (let i = spaces.length; i >= 0; i--) {
+					const space = spaces[i]
+					const [x, y] = getSpacePosition(i)
+					
+					// Sand Behave
+					if (space == ELEMENT_SAND) {
+						if (y >= HEIGHT_PADDING) sands++
+						if (!flipped) drawSquare(context, x, y)
+						else drawAntiSquare(context, x, y)
+						
+						const spaceBelowId = getSpaceId(x, y+1)
+						const spaceBelow = spaces[spaceBelowId]
+						if (spaceBelow == ELEMENT_EMPTY) {
+							spaces[spaceBelowId] = ELEMENT_SAND
+							spaces[i] = ELEMENT_EMPTY
+							continue
+						}
+						
+						const spaceSlideX = Math.random() > 0.5? 1 : -1
+						const spaceSlideId = getSpaceId(x+spaceSlideX, y+1)
+						const spaceSlide = spaces[spaceSlideId]
+						if (spaceSlide == ELEMENT_EMPTY) {
+							spaces[spaceSlideId] = ELEMENT_SAND
+							spaces[i] = ELEMENT_EMPTY
+							continue
+						}
+						else if (spaceSlide == ELEMENT_SAND) {
+							
+						}
+					}
+					
+					// Empty Behave
+					if (space == ELEMENT_EMPTY) {
+						if (!flipped) drawAntiSquare(context, x, y)
+						else drawSquare(context, x, y)
+					}
+				}
+				
+				const neededSands = GRID_WIDTH * (GRID_HEIGHT - HEIGHT_PADDING)
+				if (sands >= neededSands) flipperoni()
+			},
+		}
+	};
+	  
+
+      function renderer(drawContext, module) {
+        drawContext.context.save();
+        module.draw(drawContext);
+        drawContext.context.restore();
+        return drawContext;
+      }
+
+      // create render functions from modules
+      // (just wraps in an anon function to handle the return of drawContext)
+      const ModuleRenderers = Object.keys(Modules).reduce((obj, name) => {
+        obj[name] = drawContext => renderer(drawContext, Modules[name]);
+        return obj;
+      }, {});
+
+      function interrupt(drawContext) {
+        drawContext.delta = drawContext.delta / 2.1;
+        return drawContext;
+      }
+
+      function interrupt2(drawContext) {
+        drawContext.delta = drawContext.delta * 2.1;
+        return drawContext;
+      }
+
+      const draw = pipe(
+		ModuleRenderers.sand,
+      );
+
+      function loop(delta) {
+        raf = requestAnimationFrame(loop);
+        draw({ canvas, context, delta });
+      }
+
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
+      raf = requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>
